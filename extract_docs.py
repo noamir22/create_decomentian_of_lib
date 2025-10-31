@@ -1,8 +1,10 @@
 # extract_docs.py
 """
-Extract all __doc__ strings from a Python package and save them to a Markdown file.
+Extract all __doc__ strings from a Python package and export them as
+Markdown dropdowns using <details> and <summary> HTML tags.
+
 Usage:
-    python extract_docs.py agent docs2.md
+    python extract_docs.py agent docs.md
 """
 
 import importlib
@@ -11,30 +13,45 @@ import pkgutil
 import sys
 from pathlib import Path
 
-def extract_docs(package_name, output_file):
+
+def extract_docs(package_name: str, output_file: str):
+    """Extracts __doc__ strings recursively from a Python package."""
     pkg = importlib.import_module(package_name)
     docs = []
 
-    docs.append(f"files:\n```\n{package_name}")
+    # File tree section
+    docs.append(f"files:\n```\n{package_name}\n")
     pkg_path = Path(pkg.__file__).parent
     for path in pkg_path.rglob("*.py"):
         rel = path.relative_to(pkg_path.parent)
-        docs.append(f"├── {rel}")
+        docs.append(f"├── {rel}\n")
     docs.append("```\n\n")
 
-    docs.append("commands:\n")
+    # Commands section header
+    docs.append("commands:\n\n")
 
+    # Walk through all submodules
     for importer, modname, ispkg in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + "."):
-        mod = importlib.import_module(modname)
+        try:
+            mod = importlib.import_module(modname)
+        except ImportError:
+            print(f"⚠️ Skipping {modname} (cannot import on this platform)")
+            continue
+
         for name, obj in inspect.getmembers(mod):
             if inspect.isfunction(obj) and obj.__doc__:
-                docs.append(f"* `{modname}.{name}?`\n")
                 doc = inspect.cleandoc(obj.__doc__)
-                indented = "\n".join("    " + line for line in doc.splitlines())
-                docs.append(f"```\n{indented}\n```\n\n")
+                docs.append(f"<details>\n")
+                docs.append(f"<summary><code>{modname}.{name}?</code></summary>\n\n")
+                docs.append("```\n")
+                docs.append(doc + "\n")
+                docs.append("```\n")
+                docs.append("</details>\n\n")
 
-    Path(output_file).write_text("\n".join(docs), encoding="utf-8")
-    print(f"✅ Docs extracted to {output_file}")
+    # Write to file
+    Path(output_file).write_text("".join(docs), encoding="utf-8")
+    print(f"✅ Documentation written to {output_file}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
