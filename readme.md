@@ -8,7 +8,3 @@ To use this repository, simply clone it to your local machine using the followin
 ```commandline
 python extract_docs.py <packge> <file_path>
 ```
-
-it will create a new file that look like the the following: 
-
-```markdown
